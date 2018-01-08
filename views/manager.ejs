@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>HTIP Manager | Topology visualization</title>
+
+  <style type="text/css">
+    html, body {
+      font: 10pt arial;
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #mynetwork {
+      width: 100%;
+      height: 100%;
+      border: 1px solid lightgray;
+    }
+  </style>
+
+  <script type="text/javascript" src="/javascripts/vis.js"></script>
+  <link href="/stylesheets/vis-network.min.css" rel="stylesheet" type="text/css" />
+
+  <script type="text/javascript">
+    var nodes = null;
+    var edges = null;
+    var network = null;
+
+    var LENGTH_MAIN = 350,
+        LENGTH_SERVER = 150,
+        LENGTH_SUB = 50,
+        WIDTH_SCALE = 2,
+        GREEN = 'green',
+        RED = '#C5000B',
+        ORANGE = 'orange',
+        GRAY = 'gray',
+        BLACK = '#2B1B17',
+        MAX_NODE_NUMBER = 1024,
+        DEBUG = true;
+
+    // Manage id for node and MAC address of node
+    var idMacList = null;
+
+    function initIdMacList() {
+      idMacList = [];
+    }
+
+    function addMac(mac, maclist) {
+      var mac_check = mac2Id(mac, maclist);
+      if (mac_check > 0) {
+        console.log("Specified MAC address already exist.");
+        return -1;
+      } 
+      var id = validId();
+      if (id < 0) {
+        console.log("No valid ID.");
+        return -1;
+      }
+      idMacList.push({id: id, mac: mac, maclist: maclist});
+      return id;
+    }
+
+    function validId() {
+      for (var i = 1; i < MAX_NODE_NUMBER; i++) {
+        if (id2Mac(i) == null)
+          return i;
+      }
+      return -1;
+    }
+
+    function id2Mac(id) {
+      for (var i = 0; i < idMacList.length; i++) {
+        if (id == idMacList[i].id)
+          return idMacList[i].mac;
+      }
+      return null;
+    }
+
+    function mac2Id(mac, maclist) {
+      for (var i = 0; i < idMacList.length; i++) {
+        if (idMacList[i].mac == mac)
+          return idMacList[i].id;
+        if (idMacList[i].length > 0)
+          if (mac in idMacList[i].maclist)
+            return idMacList[i].id;
+        if (maclist.length > 0)
+          if (idMacList[i].mac in maclist)
+            return idMacList[i].id;
+      }
+      return -1;
+    }
+
+    function draw_network() {
+      nodes = [];
+      edges = [];
+
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "/api/nodelist");
+      xhr.addEventListener("load", function(e) {
+        var nodeList = JSON.parse(xhr.responseText);
+        if (DEBUG)
+          console.log(nodeList);
+        initIdMacList();
+        // Create nodes
+        for (var i = 0; i < nodeList.length; i++) {
+          if (DEBUG)
+            console.log('New node MAC: ' + nodeList[i].mac);
+          var id = addMac(nodeList[i].mac, nodeList[i].maclist);
+          if (id < 0) {
+            console.log("Fail to add MAC address:" + nodeList[i].mac);
+            continue;
+          }
+          if (DEBUG)
+            console.log('New node id: ' + id + ', MAC: ' + nodeList[i].mac);
+          var nodelabel1 = 'IP: ' + nodeList[i].ip + '\nMAC: ' + nodeList[i].mac;
+          var nodelabel2 = '\n LLDP(' + nodeList[i].chassis_id + ' ' + nodeList[i].port_id + ' ' + nodeList[i].ttl + ' ' + nodeList[i].port_desc + ')\n HTIP(' + nodeList[i].device_category + ' ' + nodeList[i].manufacturer_code + ' ' + nodeList[i].model_name + ' ' + nodeList[i].model_number + ')';
+          var nodelabel3 = '\nMAC list: ' + nodeList[i].maclist;
+          if (DEBUG)
+            console.log('New node id: ' + id + ', label: ' + nodelabel1 + '-' + nodelabel2);
+          if (nodeList[i].type == 'ARP')
+            nodes.push({id: id, label: nodelabel1, group: nodeList[i].type, value: 10, title: nodelabel2 + nodelabel3});
+          else
+            nodes.push({id: id, label: nodelabel1, group: nodeList[i].type, title: nodelabel2 + nodelabel3});
+        }
+        // Print idMacList
+        if (DEBUG)
+          for (i = 0; i < idMacList.length; i++)
+            console.log("id: " + idMacList[i].id + ", MAC: " + idMacList[i].mac);
+        // Create edges
+        for (i = 0; i < nodeList.length; i++) {
+          if (DEBUG)
+            console.log('  create edges nodeList[i].mac: ' + nodeList[i].mac);
+          for (var j = 0; j < nodeList[i].fdb.length; j++) {
+            if (DEBUG)
+              console.log('    create edges port: ' + nodeList[i].fdb[j].port + ', nodeList[i].fdb[j].mac: ' + nodeList[i].fdb[j].mac);
+            var fromId = mac2Id(nodeList[i].mac, nodeList[i].maclist);
+            if (fromId < 0) {
+              console.log("Fail to mac2Id from MAC:" + nodeList[i].mac);
+            }
+            for (var k = 0; k < nodeList[i].fdb[j].mac.length; k++) {
+              if (DEBUG)
+                console.log('  create edges nodeList[i].fdb[j].mac[k]: ' + nodeList[i].fdb[j].mac[k]);
+              var toId = mac2Id([nodeList[i].fdb[j].mac[k]], []);
+              if (toId < 0) {
+                console.log("Fail to mac2Id to MAC:" + nodeList[i].fdb[j].mac[k]);
+                toId = addMac(nodeList[i].fdb[j].mac[k], []);
+                if (toId < 0) {
+                  console.log("Fail to add MAC address:" + nodeList[i].fdb[j].mac[k]);
+                }
+                var nodelabel1 = 'IP: ' + null + '\nMAC: ' + nodeList[i].fdb[j].mac[k];
+                var nodelabel2 = '\n LLDP(' + null + ' ' + null + ' ' + null + ' ' + null + ')\n HTIP(' + null + ' ' + null + ' ' + null + ' ' + null + ')';
+                var nodelabel3 = '\nMAC list: ' + [];
+                nodes.push({id: toId, label: nodelabel1, group: 'Unknown', value: 10, title: nodelabel2 + nodelabel3});
+              }
+              var found_index = -1;
+              for (var l = 0; l < edges.length; l++) {
+                if ((edges[l].from == fromId && edges[l].to == toId) || (edges[l].from == toId && edges[l].to == fromId)) {
+                  found_index = l;
+                  break;
+                }
+              }
+              if (found_index >= 0) {
+                edges[l].title = edges[l].title.replace(/--- /g, '--- ' + 'port' + nodeList[i].fdb[j].port);
+              } else {
+                edges.push({from: fromId, to: toId, length: LENGTH_MAIN, title: 'port' + nodeList[i].fdb[j].port + '(' + id2Mac(fromId) + ') --- (' + id2Mac(toId) + ')'});
+              }
+            }
+          }
+        }
+        if (DEBUG)
+          for (var i = 0; i < nodes.length; i++)
+            console.log(nodes[i]);
+        if (DEBUG)
+          for (var i = 0; i < nodes.length; i++)
+            console.log(nodes[i]);
+        if (DEBUG)
+          for (var i = 0; i < edges.length; i++)
+            console.log(edges[i]);
+
+        // legend
+        var mynetwork = document.getElementById('mynetwork');
+        var x = - mynetwork.clientWidth;
+        var y = - mynetwork.clientHeight / 2;
+        var step = 70;
+        nodes.push({id: 4001, x: x, y: y, label: 'HTIP_Manager', group: 'HTIP_Manager', value: 15, fixed: true, physics:false});
+        nodes.push({id: 4002, x: x, y: y + step, label: 'HTIP_NW', group: 'HTIP_NW', value: 15, fixed: true, physics:false});
+        nodes.push({id: 4003, x: x, y: y + 2 * step, label: 'HTIP_L2_Agent', group: 'HTIP_L2_Agent', value: 15, fixed: true,  physics:false});
+        nodes.push({id: 4004, x: x, y: y + 3 * step, label: 'HTIP_L3_Agent', group: 'HTIP_L3_Agent', value: 15, fixed: true,  physics:false});
+        nodes.push({id: 4005, x: x, y: y + 4 * step, label: 'ARP', group: 'ARP', value: 15, fixed: true,  physics:false});
+        nodes.push({id: 4006, x: x, y: y + 5 * step, label: 'Unknown', group: 'Unknown', value: 15, fixed: true,  physics:false});
+
+        // create a network
+        var container = document.getElementById('mynetwork');
+        var data = {
+          nodes: nodes,
+          edges: edges
+        };
+        var options = {
+          nodes: {
+            scaling: { min: 5, max: 10 },
+            font: { size: 12, face: 'Tahoma' }
+          },
+          edges: {
+            color: GRAY, width: 0.5, smooth: false
+          },
+          physics:{
+            barnesHut:{gravitationalConstant:-30000},
+            stabilization: {iterations:2500}
+          },
+          groups: {
+            'HTIP_Manager': {
+              shape: 'square',
+              color: '#DC143C' // crimson
+            },
+            'HTIP_NW': {
+              shape: 'square',
+              color: '#4169E1' // royalblue
+            },
+            'HTIP_L2_Agent': {
+              shape: 'dot',
+              color: "#9ACD32" // yellogreen
+            },
+            'HTIP_L3_Agent': {
+              shape: 'dot',
+              color: "#9400D3" // darkviolet
+            },
+            'ARP': {
+              shape: 'dot',
+              color: '#00CED1' // darkurquoise
+            },
+            'Unknown': {
+              shape: 'dot',
+              color: "#D2B48C" // tan
+            }
+          },
+          layout: {
+            randomSeed: undefined,
+            improvedLayout: true,
+            hierarchical: {
+              enabled: true,
+              levelSeparation: 150,
+              nodeSpacing: 100,
+              treeSpacing: 200,
+              blockShifting: true,
+              edgeMinimization: true,
+              parentCentralization: true,
+              direction: 'UD',        // UD, DU, LR, RL
+              sortMethod: 'hubsize'   // hubsize, directed
+            }
+          }
+        };
+        network = new vis.Network(container, data, options);
+      });
+      xhr.send();
+    }
+  </script>
+  
+</head>
+
+<body onload="draw_network()">
+
+<div id="mynetwork"></div>
+
+</body></html>

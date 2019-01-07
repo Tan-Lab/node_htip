@@ -7,9 +7,12 @@ var bodyParser = require('body-parser');
 
 var index = require('./routes/index');
 var manager = require('./routes/manager');
+var topology = require('./routes/topology');
 
 // HTIP L2 frame receiver
 var HtipReceiver = require("./lib/htip/htip_receiver");
+
+var TopologyGen = require("./lib/htip/topology_gen");
 
 var app = express();
 
@@ -18,6 +21,11 @@ var htipReceiver = new HtipReceiver();
 htipReceiver.startArp();
 app.get("/api/nodelist", function(req, res) {
   var nodelist = htipReceiver.getNodeList();
+  res.json(nodelist);
+});
+
+app.get("/api/topology", function(req, res) {
+  var nodelist = TopologyGen(htipReceiver.getNodeList());
   res.json(nodelist);
 });
 
@@ -36,6 +44,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', index);
 // add HTIP Manager web page
 app.use('/manager', manager);
+app.use('/topology', topology);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

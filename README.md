@@ -23,7 +23,6 @@ Next step, please install npm packages
 
 To compile the native code bindings, do this:
 
-    cd node_pcap
     node-gyp configure build
 
 # Getting started

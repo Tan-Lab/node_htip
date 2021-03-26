@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>HTIP Manager | Topology visualization</title>
+  <title>HTIP Manager | Topology visualization - Flavor2</title>
 
   <style type="text/css">
     html, body {
@@ -95,7 +95,7 @@
       edges = [];
 
       var xhr = new XMLHttpRequest();
-      xhr.open("GET", "/api/topology");
+      xhr.open("GET", "/api/topology_flavor2");
       xhr.addEventListener("load", function(e) {
         var nodeList = JSON.parse(xhr.responseText);
         if (DEBUG)
@@ -112,7 +112,8 @@
           }
           if (DEBUG)
             console.log('New node id: ' + id + ', MAC: ' + nodeList[i].mac);
-          var nodelabel1 = 'IP: ' + nodeList[i].ip + '\nMAC: ' + nodeList[i].mac;
+//          var nodelabel1 = 'IP: ' + nodeList[i].ip + '\nMAC: ' + nodeList[i].mac;
+          var nodelabel1 = 'MAC: ' + nodeList[i].mac + '\nMODEL: ' + nodeList[i].model_name;
           var nodelabel2 = '\n LLDP(' + nodeList[i].chassis_id + ' ' + nodeList[i].port_id + ' ' + nodeList[i].ttl + ' ' + nodeList[i].port_desc + ')\n HTIP(' + nodeList[i].device_category + ' ' + nodeList[i].manufacturer_code + ' ' + nodeList[i].model_name + ' ' + nodeList[i].model_number + ')';
           var nodelabel3 = '\nMAC list: ' + nodeList[i].maclist;
           if (DEBUG)
@@ -147,7 +148,8 @@
                 if (toId < 0) {
                   console.log("Fail to add MAC address:" + nodeList[i].fdb[j].mac[k]);
                 }
-                var nodelabel1 = 'IP: ' + null + '\nMAC: ' + nodeList[i].fdb[j].mac[k];
+//                var nodelabel1 = 'IP: ' + null + '\nMAC: ' + nodeList[i].fdb[j].mac[k];
+                var nodelabel1 = 'MAC: ' + nodeList[i].fdb[j].mac[k];
                 var nodelabel2 = '\n LLDP(' + null + ' ' + null + ' ' + null + ' ' + null + ')\n HTIP(' + null + ' ' + null + ' ' + null + ' ' + null + ')';
                 var nodelabel3 = '\nMAC list: ' + [];
                 nodes.push({id: toId, label: nodelabel1, group: 'Unknown', value: 10, title: nodelabel2 + nodelabel3});
@@ -198,7 +200,7 @@
         var options = {
           nodes: {
             scaling: { min: 5, max: 10 },
-            font: { size: 12, face: 'Tahoma' }
+            font: { size: 9, face: 'Tahoma' }
           },
           edges: {
             color: GRAY, width: 0.5, smooth: false

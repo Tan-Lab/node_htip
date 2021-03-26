@@ -7,12 +7,14 @@ var bodyParser = require('body-parser');
 
 var index = require('./routes/index');
 var manager = require('./routes/manager');
-var topology = require('./routes/topology');
+var topology_flavor1 = require('./routes/topology_flavor1');
+var topology_flavor2 = require('./routes/topology_flavor2');
 
 // HTIP L2 frame receiver
 var HtipReceiver = require("./lib/htip/htip_receiver");
 
-var TopologyGen = require("./lib/htip/topology_gen");
+var TopologyGenFlavor1 = require("./lib/htip/topology_gen_flavor1");
+var TopologyGenFlavor2 = require("./lib/htip/topology_gen_flavor2");
 
 var app = express();
 
@@ -24,8 +26,13 @@ app.get("/api/nodelist", function(req, res) {
   res.json(nodelist);
 });
 
-app.get("/api/topology", function(req, res) {
-  var nodelist = TopologyGen(htipReceiver.getNodeList());
+app.get("/api/topology_flavor1", function(req, res) {
+  var nodelist = TopologyGenFlavor1(htipReceiver.getNodeList());
+  res.json(nodelist);
+});
+
+app.get("/api/topology_flavor2", function(req, res) {
+  var nodelist = TopologyGenFlavor2(htipReceiver.getNodeList());
   res.json(nodelist);
 });
 
@@ -44,7 +51,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', index);
 // add HTIP Manager web page
 app.use('/manager', manager);
-app.use('/topology', topology);
+app.use('/topology_flavor1', topology_flavor1);
+app.use('/topology_flavor2', topology_flavor2);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
